@@ -1,0 +1,19 @@
+services:
+  fancontrol-config-gui:
+    image: ghcr.io/ovikiss/fancontrol-config-gui:latest
+    container_name: fancontrol-config-gui
+    restart: unless-stopped
+    ports:
+      - "8080:4173"
+    environment:
+      PROXMOX_SSH_HOST: ${PROXMOX_SSH_HOST:-}
+      PROXMOX_SSH_PORT: ${PROXMOX_SSH_PORT:-22}
+      PROXMOX_SSH_USER: ${PROXMOX_SSH_USER:-root}
+      PROXMOX_SSH_AUTH_METHOD: ${PROXMOX_SSH_AUTH_METHOD:-key}
+      PROXMOX_SSH_KEY: ${PROXMOX_SSH_KEY:-}
+      PROXMOX_SSH_PASSWORD: ${PROXMOX_SSH_PASSWORD:-}
+      PROXMOX_SSH_KNOWN_HOSTS: ${PROXMOX_SSH_KNOWN_HOSTS:-}
+      FANCONTROL_MODE: ${FANCONTROL_MODE:-Automatic (addon default)}
+      FANCONTROL_ENABLED: ${FANCONTROL_ENABLED:-true}
+    volumes:
+      - ./data:/data

@@ -23,6 +23,7 @@ func main() {
 	sharedDir := sharedUIDir()
 	appDir := envOr("APP_DIR", ".")
 	settingsPath := envOr("SETTINGS_FILE", filepath.Join(appDir, settingsFile))
+	seedSettingsFromEnv(settingsPath)
 
 	mux := http.NewServeMux()
 	mux.Handle("/common/", http.StripPrefix("/common/", http.FileServer(http.Dir(filepath.Join(sharedDir, "common")))))
@@ -31,8 +32,6 @@ func main() {
 	mux.HandleFunc("/styles-modern.css", sharedStyle(sharedDir, "style-modern.css"))
 	mux.HandleFunc("/styles-classic.css", sharedStyle(sharedDir, "style-classic.css"))
 	mux.HandleFunc("/styles-glass.css", sharedStyle(sharedDir, "style-glass.css"))
-	mux.HandleFunc("/styles.css", localFile("styles.css"))
-	mux.HandleFunc("/app.js", localFile("app.js"))
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, healthResponse{OK: true, Service: "fancontrol-config-gui"})
 	})
@@ -94,6 +93,58 @@ func configHandler(settingsPath string) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "settings": settings})
+	}
+}
+
+func seedSettingsFromEnv(settingsPath string) {
+	keys := []string{"PROXMOX_SSH_HOST", "PROXMOX_SSH_PORT", "PROXMOX_SSH_USER", "PROXMOX_SSH_AUTH_METHOD", "PROXMOX_SSH_KEY", "PROXMOX_SSH_PASSWORD", "FANCONTROL_MODE", "FANCONTROL_ENABLED"}
+	hasValues := false
+	for _, key := range keys {
+		if os.Getenv(key) != "" {
+			hasValues = true
+			break
+		}
+	}
+	if !hasValues {
+		return
+	}
+
+	settingsMu.Lock()
+	defer settingsMu.Unlock()
+	settings := map[string]any{}
+	if data, err := os.ReadFile(settingsPath); err == nil {
+		_ = json.Unmarshal(data, &settings)
+	}
+	ssh, _ := settings["ssh"].(map[string]any)
+	if ssh == nil {
+		ssh = map[string]any{}
+	}
+	setEnv(ssh, "host", "PROXMOX_SSH_HOST")
+	setEnv(ssh, "port", "PROXMOX_SSH_PORT")
+	setEnv(ssh, "user", "PROXMOX_SSH_USER")
+	setEnv(ssh, "auth_method", "PROXMOX_SSH_AUTH_METHOD")
+	setEnv(ssh, "private_key", "PROXMOX_SSH_KEY")
+	setEnv(ssh, "password", "PROXMOX_SSH_PASSWORD")
+	settings["ssh"] = ssh
+	setEnv(settings, "mode", "FANCONTROL_MODE")
+	setEnv(settings, "enabled", "FANCONTROL_ENABLED")
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		log.Printf("cannot encode environment settings: %v", err)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(settingsPath), 0700); err != nil && filepath.Dir(settingsPath) != "." {
+		log.Printf("cannot create settings directory: %v", err)
+		return
+	}
+	if err := os.WriteFile(settingsPath, append(data, '\n'), 0600); err != nil {
+		log.Printf("cannot write environment settings: %v", err)
+	}
+}
+
+func setEnv(values map[string]any, field, envKey string) {
+	if value := os.Getenv(envKey); value != "" {
+		values[field] = value
 	}
 }
 

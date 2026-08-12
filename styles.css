@@ -36,3 +36,4 @@ body.fancontrol-app .curve-row:nth-child(odd){background:var(--card-strong)}
 body.fancontrol-app .fan-card{border-radius:12px}
 body.fancontrol-app .mode-row select,body.fancontrol-app .pair input,body.fancontrol-app .ssh-grid input,body.fancontrol-app .ssh-grid textarea,body.fancontrol-app .ssh-grid select{background:var(--card-strong);border-color:var(--border);color:var(--text)}
 body.fancontrol-app .fan-bar{background:var(--bar-bg)}
+body.fancontrol-app .ssh-actions{display:flex;align-items:center;gap:14px;margin-top:18px}.ssh-status{font-size:13px;color:var(--muted)}.ssh-status.pending{color:#d5a431}.ssh-status.success{color:#42ce87}.ssh-status.error{color:#e87575}

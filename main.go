@@ -2,11 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 var settingsMu sync.Mutex
@@ -39,6 +44,7 @@ func main() {
 	})
 	mux.HandleFunc("/api/config", configHandler(settingsPath))
 	mux.HandleFunc("/api/settings.json", configHandler(settingsPath))
+	mux.HandleFunc("/api/test-ssh", testSSHHandler(settingsPath))
 	mux.HandleFunc("/styles.css", localFile(filepath.Join(appDir, "styles.css")))
 	mux.HandleFunc("/app.js", localFile(filepath.Join(appDir, "app.js")))
 	mux.HandleFunc("/", serveApp(filepath.Join(appDir, "index.html")))
@@ -47,6 +53,77 @@ func main() {
 	log.Printf("fancontrol GUI listening on http://127.0.0.1:%s", port)
 	log.Printf("using mikrotik-ui-shared from %s", sharedDir)
 	log.Fatal(server.ListenAndServe())
+}
+
+func testSSHHandler(settingsPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var settings map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+			http.Error(w, "invalid settings JSON", http.StatusBadRequest)
+			return
+		}
+		if len(settings) == 0 {
+			data, _ := os.ReadFile(settingsPath)
+			_ = json.Unmarshal(data, &settings)
+		}
+		sshSettings, _ := settings["ssh"].(map[string]any)
+		client, err := sshDial(sshSettings)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		defer client.Close()
+		output, err := sshCommand(client, "hostname && systemctl is-active fancontrol || true")
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"ok": false, "error": strings.TrimSpace(output + " " + err.Error())})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "output": output})
+	}
+}
+
+func sshDial(settings map[string]any) (*ssh.Client, error) {
+	method := stringSetting(settings, "auth_method", "key")
+	var auth ssh.AuthMethod
+	if method == "password" {
+		auth = ssh.Password(stringSetting(settings, "password", ""))
+	} else {
+		signer, err := ssh.ParsePrivateKey([]byte(stringSetting(settings, "private_key", "")))
+		if err != nil {
+			return nil, fmt.Errorf("private key: %w", err)
+		}
+		auth = ssh.PublicKeys(signer)
+	}
+	port := intSetting(settings, "port", 22)
+	config := &ssh.ClientConfig{User: stringSetting(settings, "user", "root"), Auth: []ssh.AuthMethod{auth}, HostKeyCallback: ssh.InsecureIgnoreHostKey(), Timeout: 8 * time.Second}
+	return ssh.Dial("tcp", fmt.Sprintf("%s:%d", stringSetting(settings, "host", ""), port), config)
+}
+
+func sshCommand(client *ssh.Client, command string) (string, error) {
+	session, err := client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+	output, err := session.CombinedOutput(command)
+	return strings.TrimSpace(string(output)), err
+}
+
+func stringSetting(values map[string]any, key, fallback string) string {
+	if value, ok := values[key].(string); ok && value != "" {
+		return value
+	}
+	return fallback
+}
+func intSetting(values map[string]any, key string, fallback int) int {
+	if value, ok := values[key].(float64); ok && value > 0 {
+		return int(value)
+	}
+	return fallback
 }
 
 func configHandler(settingsPath string) http.HandlerFunc {

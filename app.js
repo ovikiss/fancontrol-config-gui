@@ -32,6 +32,7 @@ function readSettings() {
     savedAt: new Date().toISOString()
   };
 }
+document.querySelector('#testSSHBtn').addEventListener('click', async () => { const status = document.querySelector('#sshStatus'); status.textContent = 'Testing SSH…'; status.className = 'ssh-status pending'; try { const response = await fetch('/api/test-ssh', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(readSettings()) }); const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || 'Connection failed'); status.textContent = 'Connected'; status.className = 'ssh-status success'; notify('SSH connection succeeded.'); } catch (error) { status.textContent = 'Connection failed'; status.className = 'ssh-status error'; notify(error.message); } });
 function applySettings(settings) {
   const host = settings.ssh?.host || document.querySelector('#sshHost')?.value || '';
   const subtitle = document.querySelector('#subtitle');

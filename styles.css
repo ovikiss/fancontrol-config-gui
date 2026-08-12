@@ -13,9 +13,8 @@ body.fancontrol-app .subtitle,body.fancontrol-app .section-heading p,body.fancon
 body.fancontrol-app .grid-head .full{color:#b87400}body.fancontrol-app .grid-head .cool{color:#1670c4}body.fancontrol-app .grid-head .quiet{color:#138653}
 body.fancontrol-app .brand-mark{color:#2878c7}
 /* The shared header controls stay enabled, but this app uses its own product mark. */
-body.fancontrol-app .brand-mikrotik-mark{display:none}
-body.fancontrol-app .brand-title:before{content:"Fancontrol GUI";font-size:24px;font-weight:750;letter-spacing:-.03em;color:var(--text,#1d2733)}
-body.fancontrol-app .brand-text,body.fancontrol-app .brand-version{display:none}
+body.fancontrol-app .brand-text{display:inline-block;font-size:24px;font-weight:750;letter-spacing:-.03em;color:var(--text)}
+body.fancontrol-app .brand-version{display:none}
 body.fancontrol-app .actions{padding-top:3px}
 body.fancontrol-app .ssh-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 18px;margin-top:22px}
 body.fancontrol-app .ssh-grid label{display:flex;flex-direction:column;gap:7px;color:var(--muted,#607080);font-size:13px}

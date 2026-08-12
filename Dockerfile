@@ -12,7 +12,7 @@ FROM alpine:3.22
 RUN apk add --no-cache ca-certificates openssh-client
 WORKDIR /app
 COPY --from=build /fancontrol-config-gui /usr/local/bin/fancontrol-config-gui
-COPY index.html app.js styles.css /app/
+COPY index.html app.js styles.css header-controls.json /app/
 COPY --from=build /tmp/mikrotik-ui-shared/ui /opt/mikrotik-ui-shared/ui
 ENV APP_DIR=/app \
     SETTINGS_FILE=/data/settings.json \

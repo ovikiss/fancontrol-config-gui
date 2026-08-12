@@ -43,7 +43,8 @@ func main() {
 		writeJSON(w, http.StatusOK, healthResponse{OK: true, Service: "fancontrol-config-gui"})
 	})
 	mux.HandleFunc("/api/config", configHandler(settingsPath))
-	mux.HandleFunc("/api/settings.json", configHandler(settingsPath))
+	mux.HandleFunc("/api/settings.json", uiSettingsHandler(settingsPath))
+	mux.HandleFunc("/api/settings", uiSettingsHandler(settingsPath))
 	mux.HandleFunc("/api/test-ssh", testSSHHandler(settingsPath))
 	mux.HandleFunc("/styles.css", localFile(filepath.Join(appDir, "styles.css")))
 	mux.HandleFunc("/app.js", localFile(filepath.Join(appDir, "app.js")))
@@ -172,6 +173,48 @@ func configHandler(settingsPath string) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "settings": settings})
+	}
+}
+
+func uiSettingsHandler(settingsPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		settingsMu.Lock()
+		defer settingsMu.Unlock()
+		all := map[string]any{}
+		if data, err := os.ReadFile(settingsPath); err == nil {
+			_ = json.Unmarshal(data, &all)
+		}
+		ui, _ := all["ui_settings"].(map[string]any)
+		if ui == nil {
+			ui = map[string]any{}
+		}
+		if r.Method == http.MethodGet {
+			writeJSON(w, http.StatusOK, ui)
+			return
+		}
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var patch map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+			http.Error(w, "invalid UI settings JSON", http.StatusBadRequest)
+			return
+		}
+		for key, value := range patch {
+			ui[key] = value
+		}
+		all["ui_settings"] = ui
+		data, err := json.MarshalIndent(all, "", "  ")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := os.WriteFile(settingsPath, append(data, '\n'), 0600); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "settings": ui})
 	}
 }
 

@@ -48,8 +48,7 @@ document.querySelector('#saveBtn').addEventListener('click', async () => { const
 document.querySelector('#offBtn').addEventListener('click', () => { document.querySelector('#controlToggle').checked = false; document.querySelector('#controlText').textContent = t('biosControlEnabled'); notify(t('stopped')); });
 document.querySelector('#restartBtn').addEventListener('click', () => notify(t('restartRequested')));
 fetch('/api/config', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).then(applySettings).catch(() => {});
-document.documentElement.setAttribute('data-theme', 'dark');
 const sharedHeader = document.querySelector('[data-mikrotik-header-root]');
-sharedHeader?.addEventListener('mikrotik:header-ready', () => { document.documentElement.setAttribute('data-theme', 'dark'); loadTranslations(); });
+sharedHeader?.addEventListener('mikrotik:header-ready', loadTranslations);
 sharedHeader?.addEventListener('mikrotik:header-setting-changed', event => { if (event.detail?.key === 'language') loadTranslations(); });
 loadTranslations();

@@ -44,9 +44,10 @@ function applySettings(settings) {
   if (Array.isArray(settings.curve)) document.querySelectorAll('.pair').forEach((pair, index) => pair.querySelectorAll('input').forEach((input, point) => { if (settings.curve[index]?.[point] !== undefined) input.value = settings.curve[index][point]; }));
   document.querySelector('#controlText').textContent = t(document.querySelector('#controlToggle').checked ? 'fancontrolEnabled' : 'biosControlEnabled');
 }
-document.querySelector('#saveBtn').addEventListener('click', async () => { const data = readSettings(); try { const response = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (!response.ok) throw new Error('save failed'); document.querySelector('#saveState').textContent = t('configurationSaved'); notify(t('applied', { node: data.ssh.host || 'pve-node' })); } catch (_) { notify('Could not save settings.json.'); } });
-document.querySelector('#offBtn').addEventListener('click', () => { document.querySelector('#controlToggle').checked = false; document.querySelector('#controlText').textContent = t('biosControlEnabled'); notify(t('stopped')); });
-document.querySelector('#restartBtn').addEventListener('click', () => notify(t('restartRequested')));
+async function remoteAction(endpoint, data, successMessage) { try { const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || 'remote action failed'); document.querySelector('#saveState').textContent = successMessage; notify(successMessage); return true; } catch (error) { notify(error.message); return false; } }
+document.querySelector('#saveBtn').addEventListener('click', async () => { const data = readSettings(); await remoteAction('/api/apply', data, t('configurationSaved')); });
+document.querySelector('#offBtn').addEventListener('click', async () => { const data = readSettings(); data.enabled = false; if (await remoteAction('/api/off', data, t('stopped'))) { document.querySelector('#controlToggle').checked = false; document.querySelector('#controlText').textContent = t('biosControlEnabled'); } });
+document.querySelector('#restartBtn').addEventListener('click', async () => { await remoteAction('/api/restart', readSettings(), t('restartRequested')); });
 fetch('/api/config', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).then(applySettings).catch(() => {});
 const sharedHeader = document.querySelector('[data-mikrotik-header-root]');
 sharedHeader?.addEventListener('mikrotik:header-ready', loadTranslations);

@@ -1,0 +1,13 @@
+[Unit]
+Description=Fancontrol GUI host controller
+After=local-fs.target
+ConditionPathExists=/etc/fancontrol-gui.conf
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/fancontrol-gui
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

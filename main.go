@@ -1,0 +1,148 @@
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sync"
+)
+
+var settingsMu sync.Mutex
+
+const settingsFile = "settings.json"
+
+type healthResponse struct {
+	OK      bool   `json:"ok"`
+	Service string `json:"service"`
+}
+
+func main() {
+	port := envOr("PORT", "4173")
+	sharedDir := sharedUIDir()
+
+	mux := http.NewServeMux()
+	mux.Handle("/common/", http.StripPrefix("/common/", http.FileServer(http.Dir(filepath.Join(sharedDir, "common")))))
+	mux.Handle("/i18n/", http.StripPrefix("/i18n/", http.FileServer(http.Dir(filepath.Join(sharedDir, "i18n")))))
+	mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(filepath.Join(sharedDir, "images")))))
+	mux.HandleFunc("/styles-modern.css", sharedStyle(sharedDir, "style-modern.css"))
+	mux.HandleFunc("/styles-classic.css", sharedStyle(sharedDir, "style-classic.css"))
+	mux.HandleFunc("/styles-glass.css", sharedStyle(sharedDir, "style-glass.css"))
+	mux.HandleFunc("/styles.css", localFile("styles.css"))
+	mux.HandleFunc("/app.js", localFile("app.js"))
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, healthResponse{OK: true, Service: "fancontrol-config-gui"})
+	})
+	mux.HandleFunc("/api/config", configHandler)
+	mux.HandleFunc("/api/settings.json", configHandler)
+	mux.HandleFunc("/", serveApp)
+
+	server := &http.Server{Addr: ":" + port, Handler: logRequests(mux)}
+	log.Printf("fancontrol GUI listening on http://127.0.0.1:%s", port)
+	log.Printf("using mikrotik-ui-shared from %s", sharedDir)
+	log.Fatal(server.ListenAndServe())
+}
+
+func configHandler(w http.ResponseWriter, r *http.Request) {
+	settingsMu.Lock()
+	defer settingsMu.Unlock()
+
+	if r.Method == http.MethodGet {
+		data, err := os.ReadFile(settingsFile)
+		if os.IsNotExist(err) {
+			writeJSON(w, http.StatusOK, map[string]any{})
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var settings map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+		http.Error(w, "invalid settings JSON", http.StatusBadRequest)
+		return
+	}
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	data = append(data, '\n')
+	tmp := settingsFile + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.Rename(tmp, settingsFile); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "settings": settings})
+}
+
+func serveApp(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, "index.html")
+}
+
+func sharedStyle(sharedDir, filename string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filepath.Join(sharedDir, "css", filename))
+	}
+}
+
+func localFile(filename string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, filename)
+	}
+}
+
+func sharedUIDir() string {
+	if dir := os.Getenv("UI_SHARED_DIR"); dir != "" {
+		return dir
+	}
+	for _, candidate := range []string{
+		"../mikrotik-ui-shared/ui",
+		"/opt/mikrotik-ui-shared/ui",
+	} {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+	log.Fatal("mikrotik-ui-shared not found; set UI_SHARED_DIR to its ui directory")
+	return ""
+}
+
+func envOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
+}
+
+func logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}

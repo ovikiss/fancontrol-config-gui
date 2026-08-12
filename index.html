@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="fancontrol-app">
-    <main class="app-shell">
+    <main class="dashboard-container app app-shell">
       <header class="topbar" data-mikrotik-header-root data-brand="fancontrol" data-brand-text="Fancontrol GUI" data-brand-version="v1.0" data-subtitle="Proxmox / MikroTik"></header>
 
       <section class="hero">
@@ -21,7 +21,7 @@
         <div class="node-card"><span class="node-icon">▣</span><div><small>NODE</small><strong>pve-node</strong></div><span class="status-pill">Online</span></div>
       </section>
 
-      <section class="panel ssh-panel">
+      <section class="card ssh-panel">
         <div class="section-heading"><div><h2 data-i18n="sshConnection">Proxmox / SSH</h2><p data-i18n="sshSubtitle">Connect to the Proxmox host where fancontrol runs directly.</p></div><span class="connection-badge" data-i18n="connectionRequired">Connection required</span></div>
         <div class="ssh-grid">
           <label><span data-i18n="sshHost">Proxmox SSH host</span><input id="sshHost" value="192.168.88.120" /></label>
@@ -33,7 +33,7 @@
         </div>
       </section>
 
-      <section class="panel fan-panel">
+      <section class="card fan-panel">
         <div class="section-heading">
           <div><h2 data-i18n="fans">Fans</h2><p data-i18n="fansSubtitle">Choose which fans are controlled by the curve below.</p></div>
           <span class="mini-status"><span class="dot"></span> <span data-i18n="fancontrolActive">Fancontrol active</span></span>
@@ -46,7 +46,7 @@
         <p class="hint" data-i18n="uncheckedFansHint">Unchecked fans remain under BIOS/hardware automatic control instead of the curve below.</p>
       </section>
 
-      <section class="panel curve-panel">
+      <section class="card curve-panel">
         <div class="section-heading"><div><h2 data-i18n="coolingCurve">Cooling curve</h2><p data-i18n="curveSubtitle">Each column is a fan mode. Each row is a temperature/PWM control point.</p></div><label class="switch-label"><input id="controlToggle" type="checkbox" checked /><span class="switch"></span><span id="controlText" data-i18n="fancontrolEnabled">Fancontrol enabled</span></label></div>
         <div class="mode-row"><div class="mode-label" data-i18n="activeMode">Active mode</div><select id="activeMode"><option data-i18n="automaticDefault">Automatic (addon default)</option><option data-i18n="fullFan">Full Fan</option><option data-i18n="coolFan">Cool Fan</option><option data-i18n="quietFan">Quiet Fan</option></select><span class="mode-note" data-i18n="sensorColumnHint">The sensors addon picks the column.</span></div>
         <div class="curve-grid">

@@ -33,6 +33,9 @@ function readSettings() {
   };
 }
 function applySettings(settings) {
+  const host = settings.ssh?.host || document.querySelector('#sshHost')?.value || '';
+  const subtitle = document.querySelector('#subtitle');
+  if (subtitle) subtitle.textContent = host ? `${host} · Fancontrol` : '';
   if (settings.ssh) { document.querySelector('#sshHost').value = settings.ssh.host || ''; document.querySelector('#sshPort').value = settings.ssh.port || 22; document.querySelector('#sshUser').value = settings.ssh.user || 'root'; document.querySelector('#sshAuthMethod').value = settings.ssh.auth_method || 'key'; document.querySelector('#sshKey').value = settings.ssh.private_key || ''; document.querySelector('#sshPassword').value = settings.ssh.password || ''; }
   if (settings.mode) document.querySelector('#activeMode').value = settings.mode;
   if (typeof settings.enabled === 'boolean') document.querySelector('#controlToggle').checked = settings.enabled;

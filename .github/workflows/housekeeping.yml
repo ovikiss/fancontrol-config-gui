@@ -1,0 +1,71 @@
+name: housekeeping
+
+on:
+  workflow_run:
+    workflows: ["docker-publish"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only (no deletions)"
+        type: boolean
+        required: true
+        default: true
+      keep_runs_per_ref:
+        description: "Completed runs to keep per workflow/ref"
+        type: string
+        required: true
+        default: "5"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+  actions: write
+  packages: write
+
+jobs:
+  cleanup:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clean old Actions runs and untagged GHCR versions
+        env:
+          GH_TOKEN: ${{ secrets.GHCR_DELETE_TOKEN || secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          PACKAGE: ${{ github.event.repository.name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          KEEP_RUNS_PER_REF: ${{ inputs.keep_runs_per_ref }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          from collections import defaultdict
+          owner, repo, package = os.environ["OWNER"], os.environ["REPO"], os.environ["PACKAGE"]
+          token = os.environ["GH_TOKEN"]
+          dry_run = os.environ.get("DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
+          keep_runs = max(1, int(os.environ.get("KEEP_RUNS_PER_REF") or "5"))
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+          def request(method, path):
+              req = urllib.request.Request("https://api.github.com" + path, method=method, headers=headers)
+              with urllib.request.urlopen(req) as response: return json.loads(response.read() or b"{}")
+          runs = request("GET", f"/repos/{owner}/{repo}/actions/runs?per_page=100").get("workflow_runs", [])
+          runs.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+          groups, keep = defaultdict(int), set(); allowed = re.compile(r"^(main|v\d+\.\d+(?:\.\d+)?)$")
+          for run in runs:
+              if run.get("status") != "completed": keep.add(run["id"]); continue
+              group = (run.get("workflow_id"), run.get("head_branch", ""))
+              if allowed.match(group[1]) and groups[group] < keep_runs: keep.add(run["id"]); groups[group] += 1
+          for run in runs:
+              if run.get("status") == "completed" and run["id"] not in keep:
+                  print(f"{'DRY-RUN ' if dry_run else ''}delete Actions run: {run['id']}")
+                  if not dry_run: request("DELETE", f"/repos/{owner}/{repo}/actions/runs/{run['id']}")
+          versions = request("GET", f"/users/{owner}/packages/container/{package}/versions?per_page=100")
+          for version in versions if isinstance(versions, list) else []:
+              tags = (((version.get("metadata") or {}).get("container") or {}).get("tags") or [])
+              if tags: continue
+              print(f"{'DRY-RUN ' if dry_run else ''}delete GHCR version: {version['id']}")
+              if not dry_run: request("DELETE", f"/users/{owner}/packages/container/{package}/versions/{version['id']}")
+          PY

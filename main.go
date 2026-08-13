@@ -199,13 +199,14 @@ func hostMode(value string) string {
 }
 
 func curveLine(curve any, row int) string {
+	defaults := []string{"20 100 35 100 50 100", "30 30 40 40 60 60", "40 30 50 40 60 50"}
 	rows, ok := curve.([]any)
 	if !ok || row >= len(rows) {
-		return "20 20 40 40 60 60"
+		return defaults[row]
 	}
 	values, ok := rows[row].([]any)
 	if !ok || len(values) < 6 {
-		return "20 20 40 40 60 60"
+		return defaults[row]
 	}
 	parts := make([]string, 6)
 	for i := range parts {

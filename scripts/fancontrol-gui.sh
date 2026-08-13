@@ -77,7 +77,7 @@ read -r T1 P1 T2 P2 T3 P3 <<< "${CURVE}"
 read -ra SELECTED <<< "${FAN_SELECTION}"
 
 calculate_pwm() {
-  awk -v t="$1" -v t1="${T1}" -v p1="${P1}" -v t2="${T2}" -v p2="${P2}" -v t3="${T3}" -v p3="${P3}" 'BEGIN { if (t<=t1) p=p1; else if (t<=t2) p=p1+(p2-p1)*(t-t1)/(t2-t1); else if (t<=t3) p=p2+(p3-p2)*(t-t2)/(t3-t2); else p=p3; if(p<0)p=0;if(p>100)p=100; printf "%d", p*255/100 }'
+  awk -v t="$1" -v t1="${T1}" -v p1="${P1}" -v t2="${T2}" -v p2="${P2}" -v t3="${T3}" -v p3="${P3}" 'BEGIN { if (t<=t1 || t2<=t1) p=p1; else if (t<=t2) p=p1+(p2-p1)*(t-t1)/(t2-t1); else if (t<=t3 && t3>t2) p=p2+(p3-p2)*(t-t2)/(t3-t2); else p=p3; if(p<0)p=0;if(p>100)p=100; printf "%d", p*255/100 }'
 }
 
 while :; do

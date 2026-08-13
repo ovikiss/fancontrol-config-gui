@@ -8,7 +8,7 @@ The shared CSS is loaded from `mikrotik-ui-shared` (`/styles-modern.css`). The D
 
 ![Fancontrol GUI modern theme](./screenshots/fancontrol-modern.png)
 
-The UI connects to the Proxmox host over SSH and installs a small standalone host controller. It writes `/etc/fancontrol-gui.conf`, `/usr/local/sbin/fancontrol-gui` and `fancontrol-gui.service`, then reloads the service. The controller reads hwmon temperature/PWM files directly, applies the selected three-point curve, and restores PWM ownership to BIOS/hardware when disabled. It does not require the Arc addon or any container-side hardware access.
+The UI connects to the Proxmox host over SSH and installs a small standalone host controller. It writes `/etc/fancontrol-gui.conf`, `/usr/local/sbin/fancontrol-gui` and `fancontrol-gui.service`, then reloads the service. The controller reads hwmon temperature/PWM files directly, applies the selected three-point curve, and restores automatic hardware PWM control when disabled. It does not require the Arc addon or any container-side hardware access.
 
 ## Run locally
 

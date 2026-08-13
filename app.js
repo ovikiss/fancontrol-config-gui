@@ -3,8 +3,8 @@ let translations = {};
 const fallbackTranslations = {
   saveApply: 'Save & Apply', fancontrolOff: 'Fancontrol Off', restart: 'Restart',
   fancontrolEnabled: 'Fancontrol enabled', fancontrolActive: 'Fancontrol active',
-  biosControlEnabled: 'BIOS control enabled', configurationSaved: 'Configuration saved',
-  applied: 'Configuration saved and applied to {node}.', stopped: 'Fancontrol stopped. BIOS/hardware control is active.',
+  automaticControlEnabled: 'Automatic hardware control enabled', configurationSaved: 'Configuration saved',
+  applied: 'Configuration saved and applied to {node}.', stopped: 'Fancontrol stopped. Automatic hardware control is active.',
   modeChanged: 'Active mode changed to {mode}.', restartRequested: 'Fancontrol service restart requested.'
 };
 function t(key, params = {}) { return String(translations[key] || fallbackTranslations[key] || key).replace(/\{(\w+)\}/g, (_, name) => params[name] ?? `{${name}}`); }
@@ -42,7 +42,7 @@ async function loadFans(settings) {
   renderFans(result.fans || [], settings.fans || []);
 }
 setInterval(() => { loadFans(readSettings()).catch(() => {}); }, 5000);
-document.querySelector('#controlToggle').addEventListener('change', event => { const on = event.currentTarget.checked; document.querySelector('#controlText').textContent = t(on ? 'fancontrolEnabled' : 'biosControlEnabled'); notify(on ? t('fancontrolEnabled') : t('biosControlEnabled')); });
+document.querySelector('#controlToggle').addEventListener('change', event => { const on = event.currentTarget.checked; document.querySelector('#controlText').textContent = t(on ? 'fancontrolEnabled' : 'automaticControlEnabled'); notify(on ? t('fancontrolEnabled') : t('automaticControlEnabled')); });
 document.querySelector('#activeMode').addEventListener('change', event => notify(t('modeChanged', { mode: event.currentTarget.value })));
 function readSettings() {
   return {
@@ -64,11 +64,11 @@ function applySettings(settings) {
   if (typeof settings.enabled === 'boolean') document.querySelector('#controlToggle').checked = settings.enabled;
   if (Array.isArray(settings.fans)) document.querySelectorAll('.fan-card input').forEach((input, index) => { input.checked = settings.fans[index] !== false; input.closest('.fan-card').classList.toggle('selected', input.checked); });
   if (Array.isArray(settings.curve)) document.querySelectorAll('.curve-row').forEach((row, rowIndex) => row.querySelectorAll('.pair').forEach((pair, mode) => pair.querySelectorAll('input').forEach((input, point) => { const value = settings.curve[mode]?.[rowIndex * 2 + point]; if (value !== undefined) input.value = value; })));
-  document.querySelector('#controlText').textContent = t(document.querySelector('#controlToggle').checked ? 'fancontrolEnabled' : 'biosControlEnabled');
+  document.querySelector('#controlText').textContent = t(document.querySelector('#controlToggle').checked ? 'fancontrolEnabled' : 'automaticControlEnabled');
 }
 async function remoteAction(endpoint, data, successMessage) { try { const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || 'remote action failed'); document.querySelector('#saveState').textContent = successMessage; notify(successMessage); return true; } catch (error) { notify(error.message); return false; } }
 document.querySelector('#saveBtn').addEventListener('click', async () => { const data = readSettings(); await remoteAction('/api/apply', data, t('configurationSaved')); });
-document.querySelector('#offBtn').addEventListener('click', async () => { const data = readSettings(); data.enabled = false; if (await remoteAction('/api/off', data, t('stopped'))) { document.querySelector('#controlToggle').checked = false; document.querySelector('#controlText').textContent = t('biosControlEnabled'); } });
+document.querySelector('#offBtn').addEventListener('click', async () => { const data = readSettings(); data.enabled = false; if (await remoteAction('/api/off', data, t('stopped'))) { document.querySelector('#controlToggle').checked = false; document.querySelector('#controlText').textContent = t('automaticControlEnabled'); } });
 document.querySelector('#restartBtn').addEventListener('click', async () => { await remoteAction('/api/restart', readSettings(), t('restartRequested')); });
 fetch('/api/config', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).then(settings => { applySettings(settings); return loadFans(settings); }).catch(() => renderFans([]));
 const sharedHeader = document.querySelector('[data-mikrotik-header-root]');

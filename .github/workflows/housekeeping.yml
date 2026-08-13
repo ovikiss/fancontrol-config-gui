@@ -64,8 +64,12 @@ jobs:
                   if not dry_run: request("DELETE", f"/repos/{owner}/{repo}/actions/runs/{run['id']}")
           versions = request("GET", f"/users/{owner}/packages/container/{package}/versions?per_page=100")
           for version in versions if isinstance(versions, list) else []:
-              tags = (((version.get("metadata") or {}).get("container") or {}).get("tags") or [])
-              if tags: continue
+              container = ((version.get("metadata") or {}).get("container"))
+              # Delete only versions GitHub explicitly identifies as untagged.
+              # Missing metadata is not proof that a manifest is disposable.
+              if not isinstance(container, dict): continue
+              tags = container.get("tags")
+              if not isinstance(tags, list) or tags: continue
               print(f"{'DRY-RUN ' if dry_run else ''}delete GHCR version: {version['id']}")
               if not dry_run: request("DELETE", f"/users/{owner}/packages/container/{package}/versions/{version['id']}")
           PY

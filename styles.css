@@ -12,7 +12,7 @@ body.fancontrol-app .mode-row select,body.fancontrol-app .pair input{background:
 body.fancontrol-app .subtitle,body.fancontrol-app .section-heading p,body.fancontrol-app .hint,body.fancontrol-app .mode-note,body.fancontrol-app .panel-footer,body.fancontrol-app .last-applied,body.fancontrol-app .fan-temp,body.fancontrol-app .rpm{color:var(--muted,#607080)}
 body.fancontrol-app .grid-head .full{color:#b87400}body.fancontrol-app .grid-head .cool{color:#1670c4}body.fancontrol-app .grid-head .quiet{color:#138653}
 body.fancontrol-app .brand-mark{color:#2878c7}
-/* The shared header controls stay enabled, but this app uses its own product mark. */
+/* The shared header provides the product mark and host status; controls are intentionally disabled for this app. */
 body.fancontrol-app .brand-text{display:inline-block;font-size:24px;font-weight:750;letter-spacing:-.03em;color:var(--text)}
 body.fancontrol-app .brand-version{display:inline-block;color:var(--muted);font-size:.48em;transform:translateY(.02em)}
 body.fancontrol-app .actions{padding-top:3px}

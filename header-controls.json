@@ -1,10 +1,10 @@
 {
-  "order": ["themeStyle", "theme", "fontSize", "language"],
+  "order": [],
   "enabled": {
-    "themeStyle": true,
-    "theme": true,
-    "fontSize": true,
+    "themeStyle": false,
+    "theme": false,
+    "fontSize": false,
     "pollInterval": false,
-    "language": true
+    "language": false
   }
 }

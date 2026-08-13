@@ -7,15 +7,26 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  IMAGE: ghcr.io/${{ github.repository }}
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build-and-push:
+  build:
     if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            suffix: amd64
+          - platform: linux/arm64
+            suffix: arm64
+          - platform: linux/arm/v7
+            suffix: armv7
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -31,23 +42,37 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=latest
-            type=ref,event=tag
-      - name: Build and push image
+      - name: Build and push platform image
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/arm/v7,linux/arm64,linux/amd64
+          platforms: ${{ matrix.platform }}
           build-args: UI_SHARED_REV=${{ env.UI_SHARED_REV }}
           provenance: false
           sbom: false
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.IMAGE }}:${{ github.ref_name }}-${{ matrix.suffix }}
+            ${{ env.IMAGE }}:latest-${{ matrix.suffix }}
+
+  manifest:
+    if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create multi-platform manifests
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${GITHUB_REF_NAME}" \
+            --tag "${IMAGE}:latest" \
+            "${IMAGE}:${GITHUB_REF_NAME}-amd64" \
+            "${IMAGE}:${GITHUB_REF_NAME}-arm64" \
+            "${IMAGE}:${GITHUB_REF_NAME}-armv7"

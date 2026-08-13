@@ -45,6 +45,7 @@ func main() {
 	mux.Handle("/common/", http.StripPrefix("/common/", http.FileServer(http.Dir(filepath.Join(sharedDir, "common")))))
 	mux.Handle("/i18n/", http.StripPrefix("/i18n/", http.FileServer(http.Dir(filepath.Join(sharedDir, "i18n")))))
 	mux.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir(filepath.Join(sharedDir, "images")))))
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(filepath.Join(appDir, "assets")))))
 	mux.HandleFunc("/header-controls.json", localFile(filepath.Join(appDir, "header-controls.json")))
 	mux.HandleFunc("/common/header-controls.json", localFile(filepath.Join(appDir, "header-controls.json")))
 	mux.HandleFunc("/styles-modern.css", sharedStyle(sharedDir, "style-modern.css"))

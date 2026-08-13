@@ -8,6 +8,7 @@ Type=simple
 ExecStart=/usr/local/sbin/fancontrol-gui
 Restart=on-failure
 RestartSec=2
+SuccessExitStatus=143
 
 [Install]
 WantedBy=multi-user.target

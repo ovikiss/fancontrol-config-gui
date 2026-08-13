@@ -13,17 +13,19 @@ CURVE_QUIET="20 40 40 60 60 80"
 source "${CONF}"
 
 PWM_PATHS=()
-PWM_ORIGINAL=()
 TEMP_PATH=""
 
 restore_pwm() {
   local i
   for i in "${!PWM_PATHS[@]}"; do
     [ -w "${PWM_PATHS[$i]}_enable" ] || continue
-    printf '%s\n' "${PWM_ORIGINAL[$i]:-2}" > "${PWM_PATHS[$i]}_enable" 2>/dev/null || true
+    # pwm_enable=2 is the it87 automatic mode. It is the safe hand-off
+    # state after fancontrol-gui stops, including after a restart.
+    printf '2\n' > "${PWM_PATHS[$i]}_enable" 2>/dev/null || true
   done
 }
-trap restore_pwm EXIT INT TERM
+trap restore_pwm EXIT
+trap 'exit 0' INT TERM
 
 find_temperature() {
   local hw name path
@@ -56,10 +58,6 @@ TEMP_PATH="$(find_temperature || true)"
 discover_fans
 [ -n "${TEMP_PATH}" ] || { echo "No temperature sensor found" >&2; exit 1; }
 [ "${#PWM_PATHS[@]}" -gt 0 ] || { echo "No writable PWM channels found" >&2; exit 1; }
-
-for pwm in "${PWM_PATHS[@]}"; do
-  if [ -r "${pwm}_enable" ]; then PWM_ORIGINAL+=("$(cat "${pwm}_enable" 2>/dev/null || echo 2)"); else PWM_ORIGINAL+=("2"); fi
-done
 
 if [ "${ENABLED}" != "1" ]; then exit 0; fi
 for i in "${!PWM_PATHS[@]}"; do

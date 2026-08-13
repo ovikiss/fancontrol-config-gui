@@ -8,7 +8,7 @@ The shared CSS is loaded from `mikrotik-ui-shared` (`/styles-modern.css`). The D
 
 ![Fancontrol GUI modern theme](./screenshots/fancontrol-modern.png)
 
-The UI connects to the Proxmox host over SSH and installs a small standalone host controller. It writes `/etc/fancontrol-gui.conf`, `/usr/local/sbin/fancontrol-gui` and `fancontrol-gui.service`, then reloads the service. The controller reads hwmon temperature/PWM files directly, applies the selected three-point curve, and restores automatic hardware PWM control when disabled. It does not require the Arc addon or any container-side hardware access.
+The UI connects to the Proxmox host over SSH and installs a small standalone host controller. It writes `/etc/fancontrol-gui.conf`, `/usr/local/sbin/fancontrol-gui` and `fancontrol-gui.service`, then reloads the service. The controller reads hwmon temperature/PWM files directly, applies the selected three-point curve, and restores PWM ownership to BIOS/hardware when disabled. It does not require the Arc addon or any container-side hardware access.
 
 ## Run locally
 
@@ -18,7 +18,7 @@ UI_SHARED_DIR=/path/to/mikrotik-ui-shared/ui go run .
 
 Then open <http://127.0.0.1:4173>.
 
-The server also exposes `GET /healthz`. **Save & Apply**, **Fancontrol Off** and **Restart** execute the corresponding SSH actions on the Proxmox host. Before applying, the previous host files are backed up under `/root/fancontrol-gui-backup-YYYYMMDD-HHMMSS`.
+The server also exposes `GET /healthz`. **Save & Apply**, **Fancontrol Off** and **Restart** execute the corresponding SSH actions on the Proxmox host. The application does not create automatic backup directories on the host; keep a separate host backup if rollback is required.
 
 ## Docker
 

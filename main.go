@@ -250,9 +250,7 @@ func sshSettingsFrom(settings map[string]any) (map[string]any, error) {
 }
 
 func applyRemote(client *ssh.Client, settings map[string]any) (string, error) {
-	stamp := time.Now().UTC().Format("20060102-150405")
-	backup := "/root/fancontrol-gui-backup-" + stamp
-	if _, err := sshCommand(client, "mkdir -p "+shellQuote(backup)+" /usr/local/sbin /etc/systemd/system && for f in /etc/fancontrol-gui.conf /usr/local/sbin/fancontrol-gui /etc/systemd/system/fancontrol-gui.service; do test ! -e \"$f\" || cp -a \"$f\" "+shellQuote(backup)+"/; done"); err != nil {
+	if _, err := sshCommand(client, "mkdir -p /usr/local/sbin /etc/systemd/system"); err != nil {
 		return "", err
 	}
 	files := map[string]string{"/etc/fancontrol-gui.conf": hostControllerConfig(settings)}
@@ -277,7 +275,7 @@ func applyRemote(client *ssh.Client, settings map[string]any) (string, error) {
 		return "", err
 	}
 	status, err := sshCommand(client, "systemctl is-active fancontrol-gui.service || true")
-	return backup + "\nservice=" + status, err
+	return "service=" + status, err
 }
 
 func applyHandler(settingsPath string) http.HandlerFunc {

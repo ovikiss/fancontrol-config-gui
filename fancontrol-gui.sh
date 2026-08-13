@@ -62,7 +62,13 @@ for pwm in "${PWM_PATHS[@]}"; do
 done
 
 if [ "${ENABLED}" != "1" ]; then exit 0; fi
-for pwm in "${PWM_PATHS[@]}"; do [ -w "${pwm}_enable" ] && printf '1\n' > "${pwm}_enable"; done
+for i in "${!PWM_PATHS[@]}"; do
+  pwm="${PWM_PATHS[$i]}"
+  [ -w "${pwm}_enable" ] || continue
+  if [ "${SELECTED[$i]:-1}" = "1" ]; then
+    printf '1\n' > "${pwm}_enable"
+  fi
+done
 
 case "${ACTIVE_MODE}" in
   0) CURVE="${CURVE_FULL}" ;;

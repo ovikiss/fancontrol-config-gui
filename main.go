@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,12 @@ const settingsFile = "settings.json"
 type healthResponse struct {
 	OK      bool   `json:"ok"`
 	Service string `json:"service"`
+}
+
+type fanInfo struct {
+	ID    string `json:"id"`
+	RPM   string `json:"rpm"`
+	TempC string `json:"temp_c"`
 }
 
 func main() {
@@ -50,6 +57,7 @@ func main() {
 	mux.HandleFunc("/api/settings.json", uiSettingsHandler(settingsPath))
 	mux.HandleFunc("/api/settings", uiSettingsHandler(settingsPath))
 	mux.HandleFunc("/api/test-ssh", testSSHHandler(settingsPath))
+	mux.HandleFunc("/api/fans", fansHandler(settingsPath))
 	mux.HandleFunc("/api/apply", applyHandler(settingsPath))
 	mux.HandleFunc("/api/off", offHandler(settingsPath))
 	mux.HandleFunc("/api/restart", restartHandler(settingsPath))
@@ -61,6 +69,52 @@ func main() {
 	log.Printf("fancontrol GUI listening on http://127.0.0.1:%s", port)
 	log.Printf("using mikrotik-ui-shared from %s", sharedDir)
 	log.Fatal(server.ListenAndServe())
+}
+
+func fansHandler(settingsPath string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		settings := loadSettingsFile(settingsPath)
+		sshSettings, _ := settings["ssh"].(map[string]any)
+		client, err := sshDial(sshSettings)
+		if err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		defer client.Close()
+		command := `for hw in /sys/class/hwmon/hwmon*; do
+  [ -d "$hw" ] || continue
+  for fan in "$hw"/fan*_input; do
+    [ -r "$fan" ] || continue
+    pwm="${fan%_input}"; pwm="${pwm/fan/pwm}"
+    [ -w "$pwm" ] || continue
+    rpm=$(cat "$fan" 2>/dev/null || echo 0)
+    temp=$(cat "$hw"/temp*_input 2>/dev/null | head -1 || echo 0)
+    printf '%s|%s|%s\n' "${fan##*/}" "$rpm" "$temp"
+  done
+done`
+		output, err := sshCommand(client, command)
+		if err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": output + " " + err.Error()})
+			return
+		}
+		fans := make([]fanInfo, 0)
+		for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+			parts := strings.Split(line, "|")
+			if len(parts) != 3 || parts[0] == "" {
+				continue
+			}
+			temp := parts[2]
+			if value, parseErr := strconv.ParseFloat(strings.TrimSpace(parts[2]), 64); parseErr == nil {
+				temp = fmt.Sprintf("%.1f", value/1000)
+			}
+			fans = append(fans, fanInfo{ID: parts[0], RPM: parts[1], TempC: temp})
+		}
+		jsonResponse(w, http.StatusOK, map[string]any{"ok": true, "fans": fans})
+	}
 }
 
 func testSSHHandler(settingsPath string) http.HandlerFunc {
@@ -186,6 +240,14 @@ func boolNumber(value any) string {
 func shellQuote(value string) string                            { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
 func jsonResponse(w http.ResponseWriter, status int, value any) { writeJSON(w, status, value) }
 
+func sshSettingsFrom(settings map[string]any) (map[string]any, error) {
+	sshSettings, ok := settings["ssh"].(map[string]any)
+	if !ok || sshSettings == nil {
+		return nil, fmt.Errorf("SSH settings are missing")
+	}
+	return sshSettings, nil
+}
+
 func applyRemote(client *ssh.Client, settings map[string]any) (string, error) {
 	stamp := time.Now().UTC().Format("20060102-150405")
 	backup := "/root/fancontrol-gui-backup-" + stamp
@@ -210,7 +272,7 @@ func applyRemote(client *ssh.Client, settings map[string]any) (string, error) {
 			return "", err
 		}
 	}
-	if _, err := sshCommand(client, "chmod 755 /usr/local/sbin/fancontrol-gui && systemctl daemon-reload && if [ \""+boolNumber(settings["enabled"])+"\" = 1 ]; then systemctl enable --now fancontrol-gui.service; else systemctl disable --now fancontrol-gui.service 2>/dev/null || true; fi"); err != nil {
+	if _, err := sshCommand(client, "chmod 755 /usr/local/sbin/fancontrol-gui && (systemctl disable --now fancontrol.service 2>/dev/null || true) && systemctl daemon-reload && if [ \""+boolNumber(settings["enabled"])+"\" = 1 ]; then systemctl enable --now fancontrol-gui.service && systemctl restart fancontrol-gui.service; else systemctl disable --now fancontrol-gui.service 2>/dev/null || true; fi"); err != nil {
 		return "", err
 	}
 	status, err := sshCommand(client, "systemctl is-active fancontrol-gui.service || true")
@@ -224,8 +286,16 @@ func applyHandler(settingsPath string) http.HandlerFunc {
 			return
 		}
 		settings := map[string]any{}
-		_ = json.NewDecoder(r.Body).Decode(&settings)
-		client, err := sshDial(settings["ssh"].(map[string]any))
+		if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid settings JSON"})
+			return
+		}
+		sshSettings, err := sshSettingsFrom(settings)
+		if err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		client, err := sshDial(sshSettings)
 		if err != nil {
 			jsonResponse(w, 400, map[string]any{"ok": false, "error": err.Error()})
 			return
@@ -251,9 +321,17 @@ func offHandler(settingsPath string) http.HandlerFunc {
 			return
 		}
 		settings := map[string]any{}
-		_ = json.NewDecoder(r.Body).Decode(&settings)
+		if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": "invalid settings JSON"})
+			return
+		}
 		settings["enabled"] = false
-		client, err := sshDial(settings["ssh"].(map[string]any))
+		sshSettings, err := sshSettingsFrom(settings)
+		if err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		client, err := sshDial(sshSettings)
 		if err != nil {
 			jsonResponse(w, 400, map[string]any{"ok": false, "error": err.Error()})
 			return
@@ -279,7 +357,12 @@ func restartHandler(settingsPath string) http.HandlerFunc {
 			return
 		}
 		settings := loadSettingsFile(settingsPath)
-		client, err := sshDial(settings["ssh"].(map[string]any))
+		sshSettings, err := sshSettingsFrom(settings)
+		if err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		client, err := sshDial(sshSettings)
 		if err != nil {
 			jsonResponse(w, 400, map[string]any{"ok": false, "error": err.Error()})
 			return

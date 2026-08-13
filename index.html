@@ -38,12 +38,8 @@
           <div><h2 data-i18n="fans">Fans</h2><p data-i18n="fansSubtitle">Choose which fans are controlled by the curve below.</p></div>
           <span class="mini-status"><span class="dot"></span> <span data-i18n="fancontrolActive">Fancontrol active</span></span>
         </div>
-        <div class="fan-list">
-          <label class="fan-card selected"><input type="checkbox" checked /><span class="checkmark">✓</span><span class="fan-name">fan1</span><span class="rpm">1,204 RPM</span><span class="fan-temp">32°C</span><span class="fan-bar"><i style="width:43%"></i></span></label>
-          <label class="fan-card selected"><input type="checkbox" checked /><span class="checkmark">✓</span><span class="fan-name">fan2</span><span class="rpm">1,196 RPM</span><span class="fan-temp">31°C</span><span class="fan-bar"><i style="width:41%"></i></span></label>
-          <label class="fan-card"><input type="checkbox" /><span class="checkmark">✓</span><span class="fan-name">fan3</span><span class="rpm">1,196 RPM</span><span class="fan-temp">31°C</span><span class="fan-bar"><i style="width:41%"></i></span></label>
-        </div>
-        <p class="hint" data-i18n="uncheckedFansHint">Unchecked fans remain under BIOS/hardware automatic control instead of the curve below.</p>
+        <div id="fanList" class="fan-list"><p class="hint">Loading controllable fans…</p></div>
+        <p class="hint" data-i18n="uncheckedFansHint">Unchecked fans are not controlled by the curve below.</p>
       </section>
 
       <section class="card curve-panel">

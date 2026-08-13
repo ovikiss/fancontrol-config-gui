@@ -34,6 +34,8 @@ body.fancontrol-app .topbar{border-bottom:0}
 body.fancontrol-app .node-card,body.fancontrol-app .fan-card,body.fancontrol-app .curve-grid,body.fancontrol-app .grid-head,body.fancontrol-app .curve-row{background:var(--card);border-color:var(--border);box-shadow:var(--glass-shadow),var(--glass-inset)}
 body.fancontrol-app .curve-row:nth-child(odd){background:var(--card-strong)}
 body.fancontrol-app .fan-card{border-radius:12px}
+body.fancontrol-app .fan-card{grid-template-columns:20px 1fr auto;grid-template-areas:"check name rpm" "check mode mode" "check bar temp"}
+body.fancontrol-app .fan-mode{grid-area:mode;align-self:center;appearance:auto;background:var(--card,#111a1e);border:1px solid var(--border,#3a4b54);color:var(--text,#e0e5e8);border-radius:6px;padding:6px 8px;font-size:12px}
 body.fancontrol-app .mode-row select,body.fancontrol-app .pair input,body.fancontrol-app .ssh-grid input,body.fancontrol-app .ssh-grid textarea,body.fancontrol-app .ssh-grid select{background:var(--card-strong);border-color:var(--border);color:var(--text)}
 body.fancontrol-app .fan-bar{background:var(--bar-bg)}
 body.fancontrol-app .ssh-actions{display:flex;align-items:center;gap:14px;margin-top:18px}.ssh-status{font-size:13px;color:var(--muted)}.ssh-status.pending{color:#d5a431}.ssh-status.success{color:#42ce87}.ssh-status.error{color:#e87575}

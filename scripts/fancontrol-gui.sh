@@ -6,9 +6,10 @@ INTERVAL=2
 ENABLED=1
 ACTIVE_MODE=1
 FAN_SELECTION="1 1 1"
+FAN_MODES="1 1 1"
 CURVE_FULL="20 100 35 100 50 100"
-CURVE_COOL="20 20 40 40 60 60"
-CURVE_QUIET="20 40 40 60 60 80"
+CURVE_COOL="30 30 40 40 60 60"
+CURVE_QUIET="40 30 50 40 60 50"
 
 source "${CONF}"
 
@@ -73,8 +74,8 @@ case "${ACTIVE_MODE}" in
   2) CURVE="${CURVE_QUIET}" ;;
   *) CURVE="${CURVE_COOL}" ;;
 esac
-read -r T1 P1 T2 P2 T3 P3 <<< "${CURVE}"
 read -ra SELECTED <<< "${FAN_SELECTION}"
+read -ra MODES <<< "${FAN_MODES}"
 
 calculate_pwm() {
   awk -v t="$1" -v t1="${T1}" -v p1="${P1}" -v t2="${T2}" -v p2="${P2}" -v t3="${T3}" -v p3="${P3}" 'BEGIN { if (t<=t1 || t2<=t1) p=p1; else if (t<=t2) p=p1+(p2-p1)*(t-t1)/(t2-t1); else if (t<=t3 && t3>t2) p=p2+(p3-p2)*(t-t2)/(t3-t2); else p=p3; if(p<0)p=0;if(p>100)p=100; printf "%d", p*255/100 }'
@@ -82,9 +83,15 @@ calculate_pwm() {
 
 while :; do
   temp="$(awk '{printf "%.1f", $1/1000}' "${TEMP_PATH}" 2>/dev/null || echo 0)"
-  pwm_value="$(calculate_pwm "${temp}")"
   for i in "${!PWM_PATHS[@]}"; do
     [ "${SELECTED[$i]:-1}" = "1" ] || continue
+    case "${MODES[$i]:-${ACTIVE_MODE}}" in
+      0) CURVE="${CURVE_FULL}" ;;
+      2) CURVE="${CURVE_QUIET}" ;;
+      *) CURVE="${CURVE_COOL}" ;;
+    esac
+    read -r T1 P1 T2 P2 T3 P3 <<< "${CURVE}"
+    pwm_value="$(calculate_pwm "${temp}")"
     printf '%s\n' "${pwm_value}" > "${PWM_PATHS[$i]}" 2>/dev/null || true
   done
   sleep "${INTERVAL}"

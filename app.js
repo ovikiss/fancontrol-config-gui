@@ -19,7 +19,7 @@ async function loadTranslations() {
 }
 let toastTimer;
 function notify(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2800); }
-function renderFans(fans, selected = []) {
+function renderFans(fans, selected = [], modes = []) {
   const list = document.querySelector('#fanList');
   if (!list) return;
   if (!fans.length) { list.innerHTML = '<p class="hint">No controllable fans found.</p>'; return; }
@@ -31,15 +31,17 @@ function renderFans(fans, selected = []) {
     const connected = rpmValue > 0;
     const checked = connected && selected[index] !== false;
     const hidden = connected ? '' : ' style="display:none"';
-    return `<label class="fan-card${checked ? ' selected' : ''}"${hidden}><input type="checkbox" data-fan-index="${index}" ${checked ? 'checked' : ''} /><span class="checkmark">✓</span><span class="fan-name">${name}</span><span class="rpm">${rpm} RPM</span><span class="fan-temp">${temp}</span><span class="fan-bar"><i style="width:0%"></i></span></label>`;
+    const mode = modes[index] || 'coolfan';
+    return `<label class="fan-card${checked ? ' selected' : ''}"${hidden}><input type="checkbox" data-fan-index="${index}" ${checked ? 'checked' : ''} /><span class="checkmark">✓</span><span class="fan-name">${name}</span><span class="rpm">${rpm} RPM</span><span class="fan-temp">${temp}</span><select class="fan-mode" data-fan-mode="${index}"><option value="quietfan" ${mode === 'quietfan' ? 'selected' : ''}>Quiet</option><option value="coolfan" ${mode === 'coolfan' ? 'selected' : ''}>Cool</option><option value="fullfan" ${mode === 'fullfan' ? 'selected' : ''}>Full</option></select><span class="fan-bar"><i style="width:0%"></i></span></label>`;
   }).join('');
   list.querySelectorAll('.fan-card input').forEach(input => input.addEventListener('change', event => event.currentTarget.closest('.fan-card').classList.toggle('selected', event.currentTarget.checked)));
+  list.querySelectorAll('.fan-mode').forEach(select => select.addEventListener('click', event => event.stopPropagation()));
 }
 async function loadFans(settings) {
   const response = await fetch('/api/fans', { cache: 'no-store' });
   const result = await response.json();
   if (!response.ok || !result.ok) throw new Error(result.error || 'Could not load fans');
-  renderFans(result.fans || [], settings.fans || []);
+  renderFans(result.fans || [], settings.fans || [], settings.fan_modes || []);
 }
 setInterval(() => { loadFans(readSettings()).catch(() => {}); }, 5000);
 document.querySelector('#controlToggle').addEventListener('change', event => { const on = event.currentTarget.checked; document.querySelector('#controlText').textContent = t(on ? 'fancontrolEnabled' : 'automaticControlEnabled'); notify(on ? t('fancontrolEnabled') : t('automaticControlEnabled')); });
@@ -50,6 +52,7 @@ function readSettings() {
     mode: document.querySelector('#activeMode').value,
     enabled: document.querySelector('#controlToggle').checked,
     fans: [...document.querySelectorAll('.fan-card input')].map(input => input.checked),
+    fan_modes: [...document.querySelectorAll('.fan-mode')].map(select => select.value),
     curve: [0, 1, 2].map(mode => [...document.querySelectorAll('.curve-row')].flatMap(row => { const inputs = row.querySelectorAll('.pair')[mode].querySelectorAll('input'); return [...inputs].map(input => +input.value); })),
     savedAt: new Date().toISOString()
   };
@@ -63,6 +66,7 @@ function applySettings(settings) {
   if (settings.mode) document.querySelector('#activeMode').value = settings.mode;
   if (typeof settings.enabled === 'boolean') document.querySelector('#controlToggle').checked = settings.enabled;
   if (Array.isArray(settings.fans)) document.querySelectorAll('.fan-card input').forEach((input, index) => { input.checked = settings.fans[index] !== false; input.closest('.fan-card').classList.toggle('selected', input.checked); });
+  if (Array.isArray(settings.fan_modes)) document.querySelectorAll('.fan-mode').forEach((select, index) => { if (settings.fan_modes[index]) select.value = settings.fan_modes[index]; });
   if (Array.isArray(settings.curve)) document.querySelectorAll('.curve-row').forEach((row, rowIndex) => row.querySelectorAll('.pair').forEach((pair, mode) => pair.querySelectorAll('input').forEach((input, point) => { const value = settings.curve[mode]?.[rowIndex * 2 + point]; if (value !== undefined) input.value = value; })));
   document.querySelector('#controlText').textContent = t(document.querySelector('#controlToggle').checked ? 'fancontrolEnabled' : 'automaticControlEnabled');
 }

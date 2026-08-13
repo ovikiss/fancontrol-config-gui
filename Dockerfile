@@ -2,7 +2,8 @@ FROM golang:1.24-alpine AS build
 ARG UI_SHARED_REV=main
 WORKDIR /src
 RUN apk add --no-cache git
-COPY go.mod go.sum main.go fancontrol-gui.sh fancontrol-gui.service ./
+COPY go.mod go.sum main.go ./
+COPY scripts/fancontrol-gui.sh scripts/fancontrol-gui.service ./scripts/
 RUN git clone --depth 1 https://github.com/ovikiss/mikrotik-ui-shared.git /tmp/mikrotik-ui-shared \
     && git -C /tmp/mikrotik-ui-shared fetch --depth 1 origin "$UI_SHARED_REV" \
     && git -C /tmp/mikrotik-ui-shared checkout --detach "$UI_SHARED_REV"

@@ -18,7 +18,7 @@ import (
 
 var settingsMu sync.Mutex
 
-//go:embed fancontrol-gui.sh fancontrol-gui.service
+//go:embed scripts/fancontrol-gui.sh scripts/fancontrol-gui.service
 var hostControllerFiles embed.FS
 
 const settingsFile = "settings.json"
@@ -255,12 +255,12 @@ func applyRemote(client *ssh.Client, settings map[string]any) (string, error) {
 		return "", err
 	}
 	files := map[string]string{"/etc/fancontrol-gui.conf": hostControllerConfig(settings)}
-	for _, name := range []string{"fancontrol-gui.sh", "fancontrol-gui.service"} {
+	for _, name := range []string{"scripts/fancontrol-gui.sh", "scripts/fancontrol-gui.service"} {
 		data, err := hostControllerFiles.ReadFile(name)
 		if err != nil {
 			return "", err
 		}
-		if name == "fancontrol-gui.sh" {
+		if name == "scripts/fancontrol-gui.sh" {
 			files["/usr/local/sbin/fancontrol-gui"] = string(data)
 		} else {
 			files["/etc/systemd/system/fancontrol-gui.service"] = string(data)

@@ -41,4 +41,9 @@ body.fancontrol-app .fan-bar{background:var(--bar-bg)}
 body.fancontrol-app .ssh-actions{display:flex;align-items:center;gap:14px;margin-top:18px}.ssh-status{font-size:13px;color:var(--muted)}.ssh-status.pending{color:#d5a431}.ssh-status.success{color:#42ce87}.ssh-status.error{color:#e87575}
 
 /* Use the full Fancontrol/Proxmox mark in the shared header. */
-  body.fancontrol-app .brand-mark,body.fancontrol-app .brand-custom-mark{display:inline-block;width:32px;height:32px;flex:0 0 32px;font-size:0;line-height:0;transform:none;color:transparent;background:url('/assets/fancontrol-mark.png') center/contain no-repeat}
+body.fancontrol-app .brand-mark,body.fancontrol-app .brand-custom-mark{display:inline-block;width:32px;height:32px;flex:0 0 32px;font-size:0;line-height:0;transform:none;color:transparent;background:url('/assets/fancontrol-mark.png') center/contain no-repeat}
+
+/* Let the selected shared-ui theme own the page background. */
+html[data-theme-style="modern"] body.fancontrol-app{background:linear-gradient(180deg,var(--overlay-dim),var(--overlay-dim)),radial-gradient(130% 120% at 0% 0%,var(--overlay-a),rgba(31,84,160,0) 54%),radial-gradient(120% 120% at 100% 100%,var(--overlay-b),rgba(23,62,126,0) 50%),var(--wallpaper-url) center/cover no-repeat fixed,var(--bg)}
+html[data-theme-style="classic"] body.fancontrol-app{background:var(--bg)}
+html[data-theme-style="glass"] body.fancontrol-app{background:transparent}

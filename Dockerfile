@@ -11,6 +11,7 @@ RUN git clone --depth 1 https://github.com/ovikiss/mikrotik-ui-shared.git /tmp/m
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /fancontrol-config-gui .
 
 FROM alpine:3.22
+ARG APP_VERSION=dev
 RUN apk add --no-cache ca-certificates openssh-client
 WORKDIR /app
 COPY --from=build /fancontrol-config-gui /usr/local/bin/fancontrol-config-gui

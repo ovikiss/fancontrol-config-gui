@@ -39,6 +39,3 @@ body.fancontrol-app .fan-mode{grid-area:mode;align-self:center;appearance:auto;b
 body.fancontrol-app .mode-row select,body.fancontrol-app .pair input,body.fancontrol-app .ssh-grid input,body.fancontrol-app .ssh-grid textarea,body.fancontrol-app .ssh-grid select{background:var(--card-strong);border-color:var(--border);color:var(--text)}
 body.fancontrol-app .fan-bar{background:var(--bar-bg)}
 body.fancontrol-app .ssh-actions{display:flex;align-items:center;gap:14px;margin-top:18px}.ssh-status{font-size:13px;color:var(--muted)}.ssh-status.pending{color:#d5a431}.ssh-status.success{color:#42ce87}.ssh-status.error{color:#e87575}
-
-/* Use the generated Fancontrol mark in the shared header instead of the generic fan glyph. */
-body.fancontrol-app .brand-mark{display:inline-block;width:32px;height:32px;flex:0 0 32px;font-size:0;line-height:0;transform:none;color:transparent;background:url('/assets/fancontrol-mark.png') center/contain no-repeat}

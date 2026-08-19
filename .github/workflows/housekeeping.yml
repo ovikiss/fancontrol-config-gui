@@ -15,7 +15,7 @@ on:
         description: "Completed runs to keep per workflow/ref"
         type: string
         required: true
-        default: "5"
+        default: "3"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -41,12 +41,13 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json, os, re, urllib.request
+          import json, os, re, subprocess, urllib.request
           from collections import defaultdict
+          from datetime import datetime, timezone
           owner, repo, package = os.environ["OWNER"], os.environ["REPO"], os.environ["PACKAGE"]
           token = os.environ["GH_TOKEN"]
           dry_run = os.environ.get("DRY_RUN", "false").lower() in {"1", "true", "yes", "on"}
-          keep_runs = max(1, int(os.environ.get("KEEP_RUNS_PER_REF") or "5"))
+          keep_runs = max(1, int(os.environ.get("KEEP_RUNS_PER_REF") or "3"))
           headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
           def request(method, path):
               req = urllib.request.Request("https://api.github.com" + path, method=method, headers=headers)
@@ -63,13 +64,45 @@ jobs:
                   print(f"{'DRY-RUN ' if dry_run else ''}delete Actions run: {run['id']}")
                   if not dry_run: request("DELETE", f"/repos/{owner}/{repo}/actions/runs/{run['id']}")
           versions = request("GET", f"/users/{owner}/packages/container/{package}/versions?per_page=100")
-          for version in versions if isinstance(versions, list) else []:
+          versions = versions if isinstance(versions, list) else []
+          release_created = {}
+          for version in versions:
+              for tag in ((version.get("metadata") or {}).get("container") or {}).get("tags") or []:
+                  match = re.fullmatch(r"(v\d+\.\d+(?:\.\d+)?)(?:-.+)?", str(tag))
+                  if match:
+                      family = match.group(1)
+                      release_created[family] = max(release_created.get(family, ""), version.get("created_at") or "")
+          keep_families = {family for family, _ in sorted(release_created.items(), key=lambda item: item[1], reverse=True)[:3]}
+          protected = set()
+          image_base = f"ghcr.io/{owner}/{package}"
+          keep_tags = {"latest"} | keep_families
+          for version in versions:
+              tags = ((version.get("metadata") or {}).get("container") or {}).get("tags") or []
+              for tag in tags:
+                  if tag == "latest" or tag.startswith("latest-") or any(tag == family or tag.startswith(family + "-") for family in keep_families):
+                      keep_tags.add(tag)
+          for tag in sorted(keep_tags):
+              result = subprocess.run(["docker", "buildx", "imagetools", "inspect", "--raw", f"{image_base}:{tag}"], text=True, capture_output=True, check=False)
+              if result.returncode == 0:
+                  try:
+                      protected.update(item.get("digest") for item in json.loads(result.stdout).get("manifests", []) if item.get("digest"))
+                  except json.JSONDecodeError:
+                      pass
+          now = datetime.now(timezone.utc)
+          for version in versions:
               container = ((version.get("metadata") or {}).get("container"))
-              # Delete only versions GitHub explicitly identifies as untagged.
-              # Missing metadata is not proof that a manifest is disposable.
               if not isinstance(container, dict): continue
               tags = container.get("tags")
-              if not isinstance(tags, list) or tags: continue
+              if not isinstance(tags, list): continue
+              keep_tagged = any(tag == "latest" or tag.startswith("latest-") or any(tag == family or tag.startswith(family + "-") for family in keep_families) for tag in tags)
+              if tags and keep_tagged: continue
+              if not tags and version.get("name") in protected: continue
+              if not tags:
+                  try:
+                      created = datetime.fromisoformat((version.get("created_at") or "").replace("Z", "+00:00"))
+                      if (now - created).total_seconds() < 48 * 3600: continue
+                  except ValueError:
+                      continue
               print(f"{'DRY-RUN ' if dry_run else ''}delete GHCR version: {version['id']}")
               if not dry_run: request("DELETE", f"/users/{owner}/packages/container/{package}/versions/{version['id']}")
           PY

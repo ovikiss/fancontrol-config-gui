@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log"
 	"net/http"
 	"os"
@@ -64,7 +65,8 @@ func main() {
 	mux.HandleFunc("/api/restart", restartHandler(settingsPath))
 	mux.HandleFunc("/styles.css", localFile(filepath.Join(appDir, "styles.css")))
 	mux.HandleFunc("/app.js", localFile(filepath.Join(appDir, "app.js")))
-	mux.HandleFunc("/", serveApp(filepath.Join(appDir, "index.html")))
+	version := envOr("APP_VERSION", "dev")
+	mux.HandleFunc("/", serveApp(filepath.Join(appDir, "index.html"), version))
 
 	server := &http.Server{Addr: ":" + port, Handler: logRequests(mux)}
 	log.Printf("fancontrol GUI listening on http://127.0.0.1:%s", port)
@@ -560,13 +562,19 @@ func setEnv(values map[string]any, field, envKey string) {
 	}
 }
 
-func serveApp(indexPath string) http.HandlerFunc {
+func serveApp(indexPath, version string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
-		http.ServeFile(w, r, indexPath)
+		data, err := os.ReadFile(indexPath)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(strings.ReplaceAll(string(data), "__APP_VERSION__", html.EscapeString(version))))
 	}
 }
 

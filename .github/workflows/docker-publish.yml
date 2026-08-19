@@ -48,7 +48,9 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: ${{ matrix.platform }}
-          build-args: UI_SHARED_REV=${{ env.UI_SHARED_REV }}
+          build-args: |
+            UI_SHARED_REV=${{ env.UI_SHARED_REV }}
+            APP_VERSION=${{ github.ref_name }}
           provenance: false
           sbom: false
           push: true

@@ -1,5 +1,6 @@
 FROM golang:1.24-alpine AS build
 ARG UI_SHARED_REV=main
+ARG APP_VERSION=dev
 WORKDIR /src
 RUN apk add --no-cache git
 COPY go.mod go.sum main.go ./
@@ -17,6 +18,7 @@ COPY index.html app.js styles.css header-controls.json /app/
 COPY assets /app/assets
 COPY --from=build /tmp/mikrotik-ui-shared/ui /opt/mikrotik-ui-shared/ui
 ENV APP_DIR=/app \
+    APP_VERSION=$APP_VERSION \
     SETTINGS_FILE=/data/settings.json \
     UI_SHARED_DIR=/opt/mikrotik-ui-shared/ui \
     PORT=4173

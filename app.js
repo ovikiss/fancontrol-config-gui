@@ -4,7 +4,7 @@ const fallbackTranslations = {
   saveApply: 'Save & Apply', fancontrolOff: 'Fancontrol Off', restart: 'Restart',
   fancontrolEnabled: 'Fancontrol enabled', fancontrolActive: 'Fancontrol active',
   automaticControlEnabled: 'Automatic hardware control enabled', configurationSaved: 'Configuration saved',
-  applied: 'Configuration saved and applied to {node}.', stopped: 'Fancontrol stopped. Automatic hardware control is active.',
+  applied: 'Configuration saved and applied to {node}.', fancontrolStopped: 'Fancontrol stopped. Automatic hardware control is active.',
   modeChanged: 'Active mode changed to {mode}.', restartRequested: 'Fancontrol service restart requested.'
 };
 function shared() { return window.MikroTikSharedHeader; }
@@ -82,7 +82,7 @@ function applySettings(settings) {
 }
 async function remoteAction(endpoint, data, successMessage) { try { const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); const result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || t('remoteActionFailed')); document.querySelector('#saveState').textContent = successMessage; notify(successMessage); return true; } catch (error) { notify(error.message); return false; } }
 document.querySelector('#saveBtn').addEventListener('click', async () => { const data = readSettings(); await remoteAction('/api/apply', data, t('configurationSaved')); });
-document.querySelector('#offBtn').addEventListener('click', async () => { const data = readSettings(); data.enabled = false; if (await remoteAction('/api/off', data, t('stopped'))) { document.querySelector('#controlToggle').checked = false; document.querySelector('#controlText').textContent = t('automaticControlEnabled'); } });
+document.querySelector('#offBtn').addEventListener('click', async () => { const data = readSettings(); data.enabled = false; if (await remoteAction('/api/off', data, t('fancontrolStopped'))) { document.querySelector('#controlToggle').checked = false; document.querySelector('#controlText').textContent = t('automaticControlEnabled'); } });
 document.querySelector('#restartBtn').addEventListener('click', async () => { await remoteAction('/api/restart', readSettings(), t('restartRequested')); });
 fetch('/api/config', { cache: 'no-store' }).then(response => response.ok ? response.json() : {}).then(settings => { applySettings(settings); return loadFans(settings); }).catch(() => renderFans([]));
 const ready = shared()?.ready || shared()?.whenReady?.();
